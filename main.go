@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"gol/backend"
+	core "github.com/MJ-NMR/gol/core"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,7 +17,7 @@ func main() {
 }
 
 type model struct {
-	frame   backend.State
+	frame   core.State
 	courser location
 }
 
@@ -33,7 +33,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.frame = backend.CreateState(uint(msg.Height-3), uint(msg.Width/2))
+		m.frame = core.CreateState(uint(msg.Height-3), uint(msg.Width/2))
 		m.courser = location{0,0}
 		return m, nil
 
@@ -67,7 +67,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.frame[m.courser.y][m.courser.x] = !m.frame[m.courser.y][m.courser.x]
 
 		case "enter":
-			m.frame = backend.PlayRound(m.frame)
+			m.frame = core.PlayRound(m.frame)
 		}
 	}
 	return m, nil
