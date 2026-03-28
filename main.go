@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/MJ-NMR/gol/core"
 	"os"
+	"time"
+
+	"github.com/MJ-NMR/gol/core"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -19,6 +21,19 @@ func main() {
 type model struct {
 	frame   core.State
 	courser location
+	playing bool
+	stop    chan struct{}
+}
+
+type next struct{}
+
+func (m model) sendNext() tea.Msg {
+	select {
+	case <-m.stop:
+		return nil // cancelled
+	case <-time.After(100 * time.Millisecond):
+		return next{}
+	}
 }
 
 type location struct {
@@ -37,6 +52,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.courser = location{0, 0}
 		return m, nil
 
+	case next:
+		if !m.playing {
+			break
+		}
+		m.frame = core.PlayRound(m.frame)
+		return m, m.sendNext
+
 	case tea.KeyMsg:
 		switch msg.String() {
 
@@ -44,30 +66,57 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "up", "k":
+			if m.playing {
+				break
+			}
 			if m.courser.y > 0 {
 				m.courser.y -= 1
 			}
 
 		case "down", "j":
+			if m.playing {
+				break
+			}
 			if m.courser.y < len(m.frame)-1 {
 				m.courser.y += 1
 			}
 
 		case "right", "l":
+			if m.playing {
+				break
+			}
 			if m.courser.x < len(m.frame[0])-1 {
 				m.courser.x += 1
 			}
 
 		case "left", "h":
+			if m.playing {
+				break
+			}
 			if m.courser.x > 0 {
 				m.courser.x -= 1
 			}
 
 		case " ":
+			if m.playing {
+				break
+			}
 			m.frame[m.courser.y][m.courser.x] = !m.frame[m.courser.y][m.courser.x]
 
-		case "enter":
+		case "s":
+			if m.playing {
+				break
+			}
 			m.frame = core.PlayRound(m.frame)
+		case "enter":
+			if m.playing {
+				m.playing = false
+				close(m.stop)
+			} else {
+				m.playing = true
+				m.stop = make(chan struct{})
+				return m, m.sendNext
+			}
 		}
 	}
 	return m, nil
@@ -92,7 +141,7 @@ func (m model) View() (s string) {
 		s += "\n"
 	}
 
-	s += "\nPress \033[32mq\033[0m: quit, \033[32mEnter\033[0m: next round, \033[32mSpace\033[0m: toggele cell\n"
+	s += "\nPress \033[32mq\033[0m: quit, \033[32ms\033[0m: one step, \033[32mSpace\033[0m: toggele cell, \033[32mEnter\033[0m: play/stop\n"
 
 	return s
 }
